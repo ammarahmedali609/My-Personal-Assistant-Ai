@@ -32,3 +32,12 @@ git remote add origin https://github.com/ammarahmedali609/My-Personal-Assistant-
 
 
 github Token : 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
+
+
+
+
+git config --global user.name "ammarahmedali609"
+git config --global user.email "ammarahmedali609@gmail.com"
+
+Username for 'https://github.com/ammarahmedali609': 
+Password for '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': 
