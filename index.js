@@ -1,5 +1,5 @@
 // استيراد المكتبات المطلوبة
-require('dotenv').config(); // تحميل متغيرات البيئة من .env
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 
@@ -9,37 +9,52 @@ const port = process.env.PORT || 3000; // استخدم المنفذ من متغ�
 // Middleware لتحليل JSON
 app.use(express.json());
 
-// متغيرات البيئة (استبدل هذه القيم في ملف .env)
+// متغيرات البيئة (تحقق من ضبطها في Vercel)
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
+if (!VERIFY_TOKEN || !PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+    console.error("❌ تأكد من ضبط متغيرات البيئة في Vercel.");
+    process.exit(1); // إنهاء العملية في حالة عدم ضبط المتغيرات
+}
+
+// نقطة نهاية لفحص حالة الخادم
+app.get('/', (req, res) => {
+    res.send("🚀 الخادم يعمل بنجاح!");
+});
+
 // التحقق من Webhook
 app.get('/webhook', (req, res) => {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+    try {
+        const mode = req.query['hub.mode'];
+        const token = req.query['hub.verify_token'];
+        const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-        console.log('Webhook verified successfully.');
-        res.status(200).send(challenge);
-    } else {
-        res.sendStatus(403);
+        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+            console.log('✅ Webhook verified successfully.');
+            return res.status(200).send(challenge);
+        } else {
+            console.warn("⚠️ فشل التحقق من Webhook: رمز التحقق غير صحيح.");
+            return res.sendStatus(403);
+        }
+    } catch (error) {
+        console.error("❌ خطأ أثناء التحقق من Webhook:", error.message);
+        return res.sendStatus(500);
     }
 });
 
 // استقبال الرسائل والرد عليها
 app.post('/webhook', async (req, res) => {
     try {
-        console.log("Received request:", JSON.stringify(req.body, null, 2));
+        console.log("📩 Received request:", JSON.stringify(req.body, null, 2));
 
-        // استخراج البيانات من الطلب
         const entry = req.body.entry?.[0];
         const change = entry?.changes?.[0]?.value;
         const messageObj = change?.messages?.[0];
 
         if (!messageObj) {
-            console.log("No message found in the request.");
+            console.log("⚠️ لا توجد رسالة في الطلب.");
             return res.sendStatus(400);
         }
 
@@ -48,16 +63,16 @@ app.post('/webhook', async (req, res) => {
 
         console.log(`📩 رسالة من ${senderId}: ${messageText}`);
 
-        // رد تلقائي بسيط
+        // رد تلقائي
         const responseText = "شكرًا على رسالتك! كيف يمكنني مساعدتك؟ 😊";
 
-        // إرسال الرد عبر API واتساب
+        // إرسال الرد
         await sendWhatsAppMessage(senderId, responseText);
 
-        res.sendStatus(200);
+        return res.sendStatus(200);
     } catch (error) {
         console.error("❌ خطأ أثناء معالجة الرسالة:", error.message);
-        res.sendStatus(500);
+        return res.sendStatus(500);
     }
 });
 
@@ -87,7 +102,7 @@ async function sendWhatsAppMessage(to, message) {
     }
 }
 
-// تصدير التطبيق عند التشغيل على Vercel
+// تصدير التطبيق لـ Vercel
 module.exports = app;
 
 // تشغيل الخادم محليًا
